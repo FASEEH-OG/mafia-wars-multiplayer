@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mafia Game — Room Test</title>
+<!-- Served automatically by the socket.io server -->
+<script src="/socket.io/socket.io.js"></script>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 480px; margin: 40px auto; padding: 0 16px; }
+  input, button { font-size: 16px; padding: 8px; margin: 4px 0; }
+  button { cursor: pointer; }
+  #codeInput { text-transform: uppercase; width: 100px; }
+  #roomInfo { font-weight: bold; margin-top: 12px; }
+  #error { color: #c0392b; min-height: 1.2em; }
+  #playerList { padding-left: 20px; }
+  #playerList li { padding: 2px 0; }
+</style>
+</head>
+<body>
+  <h1>Mafia Game — Lobby Test</h1>
+
+  <div>
+    <input id="nameInput" placeholder="Your name" />
+  </div>
+
+  <div>
+    <button id="createBtn">Create Room</button>
+  </div>
+
+  <div>
+    <input id="codeInput" placeholder="Room code" maxlength="4" />
+    <button id="joinBtn">Join Room</button>
+  </div>
+
+  <p id="error"></p>
+  <p id="roomInfo"></p>
+
+  <h3>Players in lobby:</h3>
+  <ul id="playerList"></ul>
+
+  <script>
+    const socket = io(); // connects to whatever host served this page
+
+    const nameInput = document.getElementById('nameInput');
+    const codeInput = document.getElementById('codeInput');
+    const roomInfo = document.getElementById('roomInfo');
+    const errorEl = document.getElementById('error');
+    const playerListEl = document.getElementById('playerList');
+
+    // --- Create room ---
+    document.getElementById('createBtn').addEventListener('click', () => {
+      const playerName = nameInput.value.trim();
+      if (!playerName) return alert('Enter your name first.');
+      socket.emit('createRoom', { playerName });
+    });
+
+    // --- Join room ---
+    document.getElementById('joinBtn').addEventListener('click', () => {
+      const playerName = nameInput.value.trim();
+      const roomCode = codeInput.value.trim();
+      if (!playerName || !roomCode) return alert('Enter your name and a room code.');
+      socket.emit('joinRoom', { playerName, roomCode });
+    });
+
+    // --- Server responses ---
+
+    // Fired only for the socket that created the room.
+    socket.on('roomCreated', ({ roomCode, players }) => {
+      errorEl.textContent = '';
+      roomInfo.textContent = `Room created! Share this code: ${roomCode}`;
+      renderPlayers(players);
+    });
+
+    // Fired only for the socket that just joined.
+    socket.on('roomJoined', ({ roomCode, players }) => {
+      errorEl.textContent = '';
+      roomInfo.textContent = `Joined room: ${roomCode}`;
+      renderPlayers(players);
+    });
+
+    // Fired for EVERYONE in the room whenever the player list changes —
+    // this is what keeps every open browser tab's lobby list in sync.
+    socket.on('updatePlayerList', (players) => {
+      renderPlayers(players);
+    });
+
+    // Server-side error, e.g. trying to join a room that doesn't exist.
+    socket.on('errorMessage', (msg) => {
+      errorEl.textContent = msg;
+    });
+
+    function renderPlayers(players) {
+      playerListEl.innerHTML = '';
+      players.forEach((p) => {
+        const li = document.createElement('li');
+        li.textContent = p.name;
+        playerListEl.appendChild(li);
+      });
+    }
+  </script>
+</body>
+</html>
